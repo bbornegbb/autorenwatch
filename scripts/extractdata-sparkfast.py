@@ -8,14 +8,21 @@ import sys
 import operator
 import iso8601
 
-if len (sys.argv) > 1 and sys.argv[1] == "short":
-    FILE_PATTERN="/mnt/nas/bernhard/zeitung/puma2.inet.tu-berlin.de/~oliver/tagesschau/tagesschau-20161231-*/*-*.json"
-    DB_FILE="db/tagesschau_short"
-    PARTITIONS=8
-else:
-    FILE_PATTERN="/tmp/tagesschau.de-api-2013-07-08/*/*/*/*.json"
-    DB_FILE="db/tagesschau"
-    PARTITIONS=50
+if len(sys.argv) < 3:
+    print ("\n\nUsage:", sys.argv[0], "source_glob_pattern dbroot [partitions]")
+    print ("\n    source_glob_pattern is a shell-escaped glob which should expand to\n"
+           "        all input files, e.g. \"*/*/*/*.json\".\n"
+           "    dbroot is the location in the file system where the new db is stored,\n"
+           "        e.g. \"db/dataset\". If there already is a DB it will be overwritten.\n"
+           "    partitions is an optional integer indicating how many partitions should\n"
+           "        be created\n"
+
+    )
+    sys.exit(1)
+
+FILE_PATTERN = sys.argv[1]
+DB_FILE = sys.argv[2]
+PARTITIONS = 8 if len (sys.argv) < 4 else int (sys.argv[3])
 
 def extractTitle (j):
     for titlename in ("headline", "shorttitle"):
@@ -91,10 +98,9 @@ def extractAuthorText (j):
     except:
         author_string = None
     if author_string is None:
-        return aNone, aNone, aNone
-    type_ = aNone
-    if author_string.startswith ("Ein "):
-        type_, author_string = author_string.split(" ", 2)[1:]
+        return aNone, aNone
+    if author_string.startswith ("Ein Gastbeitrag "):
+        author_string = author_string.split(" ", 2)[2]
     if author_string.lower().startswith ("von "):
         author_string = author_string[4:]
     author_strings = author_string.split (" und ")
@@ -102,7 +108,7 @@ def extractAuthorText (j):
     authors_locs = [ _get_author_loc(a) for a in author_strings ]
     authors = " / ".join (a[0] for a in authors_locs)
     locations = " / ".join (a[1] for a in authors_locs)
-    return authors, locations, type_
+    return authors, locations
 
 #def extractAuthorsOther (j):
 #    def _extractAuthor ():
@@ -125,6 +131,12 @@ def extractDate (j):
     except:
         return None
 
+def extractType (j):
+    try:
+        return j['type']
+    except:
+        return None
+
 def extractMetaFromJson (path):
     with open(path) as jf:
         try:
@@ -135,16 +147,16 @@ def extractMetaFromJson (path):
             print ("*"*80)
             raise
     text = extractText(j)
-    author_text, location, type_ = extractAuthorText (j)
+    author_text, location = extractAuthorText (j)
     return (path.rsplit("/", 1)[1],
             extractDate(j),
             extractTitle (j),
             author_text,
             location,
-            type_,
             extractAuthorShort (j),
             extractAuthorTeaser (j),
             extractContentType (j),
+            extractType (j),
             text if not text is None else "",
             extractCredits(j))
 
@@ -157,5 +169,5 @@ spark = pyspark.sql.session.SparkSession.builder\
 paths = [ p for p in glob.glob (FILE_PATTERN) ]
 data = sc.parallelize(paths, PARTITIONS).map (extractMetaFromJson)
 
-df = spark.createDataFrame (data, "name date title author_text location type author_short author_teaser content_type text credits".split())
+df = spark.createDataFrame (data, "name date title author_text location author_short author_teaser content_type type text credits".split())
 df.write.parquet (DB_FILE, mode="overwrite")
