@@ -1,4 +1,4 @@
-def reload ():
+def reattach ():
     global tagesschau
     global tagesschau_short
     global authors
@@ -13,3 +13,5 @@ def reload ():
     json_files.registerTempTable("json_files")
     json_files20k = json_files.repartition(20000)
     json_files20k.registerTempTable ("json_files20k")
+
+reattach()
