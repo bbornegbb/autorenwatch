@@ -8,7 +8,11 @@ import numpy as np
 
 def square (axes, x, y, size, fill=True, color=None, edgecolor="none", alpha=None, shadow=False):
     size2 = size / 2.
-    rect = Rectangle((x-size2,y-size2), size, size, edgecolor=edgecolor,
+    if shadow:
+        rect = Rectangle((x-size2,y-size2), size, size, edgecolor=edgecolor,
+                         facecolor="white", alpha=alpha, fill=None, linewidth=3)
+        axes.add_patch(rect)
+    rect = Rectangle((x-size2,y-size2), size, size, color=color, edgecolor=edgecolor,
                      facecolor=color, alpha=alpha, fill=fill)
     return axes.add_patch(rect)
 
@@ -27,12 +31,11 @@ def cross (axes, x, y, size, color=None, alpha=None):
     return axes.add_patch(PathPatch(path, fill=False, color=color, alpha=alpha ))
 
 def circle (axes, x, y, size, fill=True, color=None, edgecolor="none", alpha=None, shadow=False):
-
     radius = size / 2.
     if shadow:
-        c = Circle ((x, y), radius, fill=fill, color="white", alpha=alpha, linewidth=2)
+        c = Circle ((x, y), radius, fill=None, edgecolor="white", alpha=alpha, linewidth=3)
         axes.add_patch (c)
-    c = Circle ((x, y), radius, fill=fill, color=color, alpha=alpha)
+    c = Circle ((x, y), radius, color=color, edgecolor=edgecolor, facecolor=color, alpha=alpha, fill=fill)
     return axes.add_patch (c)
 
 def heatmap (ax, data, colormapname, fill=True, alpha=None, circles=False, nanmark=True, shadow=False):
